@@ -3,7 +3,15 @@ uuid = "18c6f615-48d3-4997-ac6b-401925316457"
 authors = ["Joshua J Bon"]
 version = "1.0.0-DEV"
 
+[deps]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+SequentialMonteCarlo = "8c675823-c5d5-50f8-acb2-29aff48dfc1d"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
 [compat]
+Distributions = "0.25.120"
+SequentialMonteCarlo = "0.6.2"
+StaticArrays = "1.9.15"
 julia = "1.6.7"
 
 [extras]

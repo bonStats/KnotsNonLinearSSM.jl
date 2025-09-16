@@ -50,16 +50,25 @@ end
 
 function M!(newParticle::MVFloat64Particle{d}, rng, p::Int64, particle::MVFloat64Particle{d}, ::Nothing) where d
   if p == 1
-    newParticle.x = samplemvstudent(latentscale, latentgauss, rng)
+    newParticle.x .= samplemvstudent(latentscale, latentgauss, rng)
   else
-    newParticle.x = f(particle.x, p) .+ samplemvstudent(latentscale, latentgauss, rng)
+    newParticle.x .= f(particle.x, p) .+ samplemvstudent(latentscale, latentgauss, rng)
   end
 end
 
 # potential function
-function logG(particle::MVFloat64Particle{d}, p::Int64) where d
+function logG(p::Int64, particle::MVFloat64Particle{d}, ::Nothing) where d
   return logpdf(obsgauss, particle.x - y[p])
 end
+
+model = SMCModel(M!, logG, n, MVFloat64Particle{d}, Nothing)
+smcio = SMCIO{model.particle, model.pScratch}(2^10, n, 1, true, 0.5)
+
+smc!(model, smcio)
+
+smcio.resample
+smcio.esses
+
 
 # student = MvTDist(ν, zeros(d), Σ)
 

@@ -65,7 +65,7 @@ end
 # logpdf(distr(MvNormalScaledDensityProduct(MvNormal([0.0], Σ),obsgauss), 2.0, mvec), [0.5]) -
 # logconstant(MvNormalScaledDensityProduct(MvNormal([0.0], Σ),obsgauss), 2.0, mvec)
 
-d = 5
+d = 2
 Σ = diagm(ones(d)) # latent noise matrix
 Ω = diagm(ones(d)) # observation noise matrix
 ν = 4.0
@@ -213,3 +213,9 @@ SequentialMonteCarlo.V(smcio_KPF, (x) -> 1, true, false, n)
 # quantile(st_test, 0.25), quantile(st_comp, 0.25)
 # quantile(st_test, 0.5), quantile(st_comp, 0.5)
 # quantile(st_test, 0.75), quantile(st_comp, 0.75)    
+
+
+using CSV
+using DataFrames
+
+CSV.write("example/results/ssm-test-.csv", DataFrame(res, :auto), header= ["BPF", "KPF"])

@@ -34,7 +34,7 @@ MvNormalScaledDensityProduct(dist1::MvNormal, dist2::MvNormal) = MvNormalScaledD
 dist(dist::MvNormalScaledDensityProduct, s₁::Float64, s₂::Float64) = MvNormalCanon( (dist.h₁ / s₁) + (dist.h₂ / s₂), (dist.Ω₁ / s₁) + (dist.Ω₂ / s₂))
 dist(dist::MvNormalScaledDensityProduct, s₁::Float64) = dist(d, s₁, 1.0)
 
-dist(dist::MvNormalScaledDensityProduct, s₁::Float64, x₁::MVector{d, Float64}) where d = MvNormalCanon( ((dist.h₁ + (dist.Σ₁ \ x₁))/ s₁) + (dist.h₂ / s₂), (dist.Ω₁ / s₁) + (dist.Ω₂ / s₂))
+dist(dist::MvNormalScaledDensityProduct, s₁::Float64, x₁::MVector{d, Float64}) where d = MvNormalCanon( ((dist.h₁ + (dist.Σ₁ \ x₁))/ s₁) + dist.h₂, (dist.Ω₁ / s₁) + dist.Ω₂)
 
 logconstant(dist::MvNormalScaledDensityProduct, s₁::Float64, s₂::Float64) = begin
     constMvN = MvNormal(dist.Δμ, (dist.Σ₁ * s₁) + (dist.Σ₂ * s₂)) # constant multiplier
@@ -42,12 +42,11 @@ logconstant(dist::MvNormalScaledDensityProduct, s₁::Float64, s₂::Float64) = 
 end
 logconstant(d::MvNormalScaledDensityProduct, s₁::Float64) = logconstant(d, s₁, 1.0)
 
-logconstant(dist::MvNormalScaledDensityProduct, s₁::Float64, x₁::MVector{d, Float64}) = begin
+logconstant(dist::MvNormalScaledDensityProduct, s₁::Float64, x₁::MVector{d, Float64}) where d = begin
     constMvN = MvNormal(x₁ + dist.Δμ, (dist.Σ₁ * s₁) + dist.Σ₂) # constant multiplier
     return logpdf(constMvN, zeros(length(dist.Δμ)))
 end
 
-### CHECK x_1 version AGAINST DENSITY PRODUCT
 
 # dist(MvNormalScaledDensityProduct(latentgauss,obsgauss), 1.0) # should be the same as density_product(latentgauss, obsgauss)
 # dist(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0) 
@@ -57,6 +56,12 @@ end
 # logpdf(MvNormal([1.0], 2.0*Σ), [1.0]) + logpdf(obsgauss, [1.0]) - 
 # logpdf(dist(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0), [1.0]) -
 # logconstant(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0)
+
+# mvec = MVector{1, Float64}([20.0])
+
+# logpdf(MvNormal(mvec, 2.0*Σ), [0.5]) + logpdf(obsgauss, [0.5]) - 
+# logpdf(dist(MvNormalScaledDensityProduct(MvNormal([0.0], Σ),obsgauss), 2.0, mvec), [0.5]) -
+# logconstant(MvNormalScaledDensityProduct(MvNormal([0.0], Σ),obsgauss), 2.0, mvec)
 
 d = 1
 Σ = diagm(ones(d)) # latent noise matrix
@@ -145,13 +150,18 @@ function M_KPF!(newParticle::MVRFloat64Particle{d}, rng, p::Int64, particle::MVR
     newParticle.x .= zeros(d) # dummy for use at time 2
   else
     newParticle.s .= sqrt(latentscale.ν / rand(rng, latentscale))
-    newParticle.x .= f(rand(dist(twistedgauss[p-1], particle.s, particle.x), rng), p) # use old scale!
+    newParticle.x .= f(rand(dist(twistedgauss[p-1], particle.s[1], particle.x), rng), p) # use old scale!
   end
 end
 
 function logG_KPF(p::Int64, particle::MVRFloat64Particle{d}, ::Nothing) where d
-  return logconstant(twistedgauss[p], particle.s, particle.x)
+  return logconstant(twistedgauss[p], particle.s[1], particle.x)
 end
+
+model_KPF = SMCModel(M_KPF!, logG_KPF, n, MVRFloat64Particle{d}, Nothing)
+smcio_KPF = SMCIO{model_KPF.particle, model_KPF.pScratch}(2^10, n, 1, true, 0.5)
+
+smc!(model_KPF, smcio_KPF)
 
 
 # student = MvTDist(ν, zeros(d), Σ)

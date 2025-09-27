@@ -81,10 +81,16 @@ obsgauss = MvNormal(zeros(d), Ω)
 #     return z * s
 # end
 
+A = zeros(d, d)
+A[diagind(A)] .= 1.0
+A[[diagind(A).+1...][1:(end-1)]] .= 0.5
+A[[diagind(A).+d...][1:(end-1)]] .= 0.5
 function f(x, t::Int64)
     # Adapted from: Monte Carlo Filter and Smoother for Non-Gaussian Nonlinear State Space Models
     d = length(x)
-    ( 0.5 .* x) .+ (25 .* x ./ (1 .+ x .^ 2)) .+ (8 .* cos.(1.2 .* ((d:-1:1) ./ d) .* t))
+    #( 0.5 .* x) .+ (25 .* x ./ (1 .+ x .^ 2)) .+ (8 .* cos.(1.2 .* ((d:-1:1) ./ d) .* t))
+    #A * (( 0.5 .* x) .+ (25 .* x ./ (1 .+ x .^ 2)))
+    A * (( 0.5 .* x) .+ (25 .* x ./ (1 .+ x .^ 2)) .+ (8 .* cos.(1.2 .* ((d:-1:1) ./ d).* t)))
 end
 
 # observations

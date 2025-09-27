@@ -49,11 +49,11 @@ logconstant(dist::MvNormalScaledDensityProduct, s₁::Float64, x₁::MVector{d, 
 end
 
 
-distr(MvNormalScaledDensityProduct(latentgauss,obsgauss), 1.0) # should be the same as 
-density_product(latentgauss, obsgauss)
-distr(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0) 
-density_product(MvNormal([1.0], 2.0*Σ), obsgauss)
-logconstant(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0)
+# distr(MvNormalScaledDensityProduct(latentgauss,obsgauss), 1.0) # should be the same as 
+# density_product(latentgauss, obsgauss)
+# distr(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0) 
+# density_product(MvNormal([1.0], 2.0*Σ), obsgauss)
+# logconstant(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0)
 
 # logpdf(MvNormal([1.0], 2.0*Σ), [1.0]) + logpdf(obsgauss, [1.0]) - 
 # logpdf(distr(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0), [1.0]) -
@@ -65,7 +65,7 @@ logconstant(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0)
 # logpdf(distr(MvNormalScaledDensityProduct(MvNormal([0.0], Σ),obsgauss), 2.0, mvec), [0.5]) -
 # logconstant(MvNormalScaledDensityProduct(MvNormal([0.0], Σ),obsgauss), 2.0, mvec)
 
-d = 1
+d = 5
 Σ = diagm(ones(d)) # latent noise matrix
 Ω = diagm(ones(d)) # observation noise matrix
 ν = 4.0
@@ -131,9 +131,10 @@ function logG_BPF(p::Int64, particle::MVFloat64Particle{d}, ::Nothing) where d
 end
 
 model_BPF = SMCModel(M_BPF!, logG_BPF, n, MVFloat64Particle{d}, Nothing)
-smcio_BPF = SMCIO{model_BPF.particle, model_BPF.pScratch}(2^11, n, 1, true, 0.5)
+smcio_BPF = SMCIO{model_BPF.particle, model_BPF.pScratch}(2^10, n, 1, true, 0.5)
 
 smc!(model_BPF, smcio_BPF)
+SequentialMonteCarlo.V(smcio_BPF, (x) -> 1, true, false, n)
 
 smcio_BPF.logZhats[end]
 smcio_BPF.resample
@@ -166,14 +167,15 @@ function logG_KPF(p::Int64, particle::MVRFloat64Particle{d}, ::Nothing) where d
 end
 
 model_KPF = SMCModel(M_KPF!, logG_KPF, n, MVRFloat64Particle{d}, Nothing)
-smcio_KPF = SMCIO{model_KPF.particle, model_KPF.pScratch}(2^11, n, 1, true, 0.5)
+smcio_KPF = SMCIO{model_KPF.particle, model_KPF.pScratch}(2^10, n, 1, true, 0.5)
 
 smc!(model_KPF, smcio_KPF)
+SequentialMonteCarlo.V(smcio_KPF, (x) -> 1, true, false, n)
 
 smcio_KPF.logZhats[end]
 
 
-reps = 1000
+reps = 200
 res = Matrix{Float64}(undef,reps,2)
 
 for i in 1:reps
@@ -181,6 +183,10 @@ for i in 1:reps
   smc!(model_KPF, smcio_KPF)
   res[i,:] = [smcio_BPF.logZhats[end], smcio_KPF.logZhats[end]]
 end
+
+
+std(res[:,1]), std(res[:,2])
+
 
 logsumexp(res[:,1]) - log(reps)
 logsumexp(res[:,2]) - log(reps)

@@ -3,6 +3,7 @@ using Distributions
 using SequentialMonteCarlo
 using StaticArrays
 using Random
+using LogExpFunctions
 
 function density_product(dist1::MvNormal, dist2::MvNormal)
     constMvN = MvNormal(dist2.μ, dist1.Σ + dist2.Σ) # constant multiplier
@@ -31,10 +32,10 @@ end
 
 MvNormalScaledDensityProduct(dist1::MvNormal, dist2::MvNormal) = MvNormalScaledDensityProduct(inv(dist1.Σ), inv(dist2.Σ), dist1.Σ \ dist1.μ, dist2.Σ \ dist2.μ, dist1.Σ, dist2.Σ, dist1.μ - dist2.μ)
 
-dist(dist::MvNormalScaledDensityProduct, s₁::Float64, s₂::Float64) = MvNormalCanon( (dist.h₁ / s₁) + (dist.h₂ / s₂), (dist.Ω₁ / s₁) + (dist.Ω₂ / s₂))
-dist(dist::MvNormalScaledDensityProduct, s₁::Float64) = dist(d, s₁, 1.0)
+distr(dist::MvNormalScaledDensityProduct, s₁::Float64, s₂::Float64) = MvNormalCanon( (dist.h₁ / s₁) + (dist.h₂ / s₂), (dist.Ω₁ / s₁) + (dist.Ω₂ / s₂))
+distr(dist::MvNormalScaledDensityProduct, s₁::Float64) = distr(dist, s₁, 1.0)
 
-dist(dist::MvNormalScaledDensityProduct, s₁::Float64, x₁::MVector{d, Float64}) where d = MvNormalCanon( ((dist.h₁ + (dist.Σ₁ \ x₁))/ s₁) + dist.h₂, (dist.Ω₁ / s₁) + dist.Ω₂)
+distr(dist::MvNormalScaledDensityProduct, s₁::Float64, x₁::MVector{d, Float64}) where d = MvNormalCanon( ((dist.h₁ + (dist.Σ₁ \ x₁))/ s₁) + dist.h₂, (dist.Ω₁ / s₁) + dist.Ω₂)
 
 logconstant(dist::MvNormalScaledDensityProduct, s₁::Float64, s₂::Float64) = begin
     constMvN = MvNormal(dist.Δμ, (dist.Σ₁ * s₁) + (dist.Σ₂ * s₂)) # constant multiplier
@@ -48,19 +49,20 @@ logconstant(dist::MvNormalScaledDensityProduct, s₁::Float64, x₁::MVector{d, 
 end
 
 
-# dist(MvNormalScaledDensityProduct(latentgauss,obsgauss), 1.0) # should be the same as density_product(latentgauss, obsgauss)
-# dist(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0) 
-# density_product(MvNormal([1.0], 2.0*Σ), obsgauss)
-# logconstant(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0)
+distr(MvNormalScaledDensityProduct(latentgauss,obsgauss), 1.0) # should be the same as 
+density_product(latentgauss, obsgauss)
+distr(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0) 
+density_product(MvNormal([1.0], 2.0*Σ), obsgauss)
+logconstant(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0)
 
 # logpdf(MvNormal([1.0], 2.0*Σ), [1.0]) + logpdf(obsgauss, [1.0]) - 
-# logpdf(dist(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0), [1.0]) -
+# logpdf(distr(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0), [1.0]) -
 # logconstant(MvNormalScaledDensityProduct(MvNormal([1.0], Σ),obsgauss), 2.0)
 
 # mvec = MVector{1, Float64}([20.0])
 
 # logpdf(MvNormal(mvec, 2.0*Σ), [0.5]) + logpdf(obsgauss, [0.5]) - 
-# logpdf(dist(MvNormalScaledDensityProduct(MvNormal([0.0], Σ),obsgauss), 2.0, mvec), [0.5]) -
+# logpdf(distr(MvNormalScaledDensityProduct(MvNormal([0.0], Σ),obsgauss), 2.0, mvec), [0.5]) -
 # logconstant(MvNormalScaledDensityProduct(MvNormal([0.0], Σ),obsgauss), 2.0, mvec)
 
 d = 1
@@ -72,12 +74,12 @@ latentgauss = MvNormal(zeros(d), Σ)
 latentscale = Chisq(ν) # latent scale = multivariate t with ν degrees of freedom
 obsgauss = MvNormal(zeros(d), Ω)
 
-function samplescalenormalmix(scale::Distribution{Univariate}, mvn::MvNormal, rng)
-    # zero mean
-    z = rand(rng, mvn)
-    s = sqrt(scale.ν / rand(rng, scale))
-    return z * s
-end
+# function samplescalenormalmix(scale::Distribution{Univariate}, mvn::MvNormal, rng)
+#     # zero mean
+#     z = rand(rng, mvn)
+#     s = sqrt(scale.ν / rand(rng, scale))
+#     return z * s
+# end
 
 function f(x, t::Int64)
     # Adapted from: Monte Carlo Filter and Smoother for Non-Gaussian Nonlinear State Space Models
@@ -91,9 +93,11 @@ x = [zeros(d) for _ in 1:n]
 y = [zeros(d) for _ in 1:n]
 for t in 1:n
   if t == 1
-    x[t] = samplescalenormalmix(latentscale, latentgauss, Random.GLOBAL_RNG)
+    s = sqrt(latentscale.ν / rand(Random.GLOBAL_RNG, latentscale))
+    x[t] = s*rand(Random.GLOBAL_RNG, latentgauss)
   else
-    x[t] = f(x[t-1], t) .+ samplescalenormalmix(latentscale, latentgauss, Random.GLOBAL_RNG)
+    s = sqrt(latentscale.ν / rand(Random.GLOBAL_RNG, latentscale))
+    x[t] = f(x[t-1], t) .+ s*rand(Random.GLOBAL_RNG, latentgauss)
   end
   y[t] = x[t] .+ rand(obsgauss)
 end
@@ -113,9 +117,11 @@ end
 
 function M_BPF!(newParticle::MVFloat64Particle{d}, rng, p::Int64, particle::MVFloat64Particle{d}, ::Nothing) where d
   if p == 1
-    newParticle.x .= samplescalenormalmix(latentscale, latentgauss, rng)
+    s = sqrt(latentscale.ν / rand(rng, latentscale))
+    newParticle.x .= s * rand(rng, latentgauss)
   else
-    newParticle.x .= f(particle.x, p) .+ samplescalenormalmix(latentscale, latentgauss, rng)
+    s = sqrt(latentscale.ν / rand(rng, latentscale))
+    newParticle.x .= f(particle.x, p) .+ s * rand(rng, latentgauss)
   end
 end
 
@@ -125,10 +131,11 @@ function logG_BPF(p::Int64, particle::MVFloat64Particle{d}, ::Nothing) where d
 end
 
 model_BPF = SMCModel(M_BPF!, logG_BPF, n, MVFloat64Particle{d}, Nothing)
-smcio_BPF = SMCIO{model_BPF.particle, model_BPF.pScratch}(2^10, n, 1, true, 0.5)
+smcio_BPF = SMCIO{model_BPF.particle, model_BPF.pScratch}(2^11, n, 1, true, 0.5)
 
 smc!(model_BPF, smcio_BPF)
 
+smcio_BPF.logZhats[end]
 smcio_BPF.resample
 smcio_BPF.esses
 
@@ -146,11 +153,11 @@ end
 
 function M_KPF!(newParticle::MVRFloat64Particle{d}, rng, p::Int64, particle::MVRFloat64Particle{d}, ::Nothing) where d
   if p == 1
-    newParticle.s .= sqrt(latentscale.ν / rand(rng, latentscale))
+    newParticle.s .= latentscale.ν / rand(rng, latentscale)
     newParticle.x .= zeros(d) # dummy for use at time 2
   else
-    newParticle.s .= sqrt(latentscale.ν / rand(rng, latentscale))
-    newParticle.x .= f(rand(dist(twistedgauss[p-1], particle.s[1], particle.x), rng), p) # use old scale!
+    newParticle.s .= latentscale.ν / rand(rng, latentscale)
+    newParticle.x .= f(rand(rng, distr(twistedgauss[p-1], particle.s[1], particle.x)), p) # use old scale!
   end
 end
 
@@ -159,12 +166,32 @@ function logG_KPF(p::Int64, particle::MVRFloat64Particle{d}, ::Nothing) where d
 end
 
 model_KPF = SMCModel(M_KPF!, logG_KPF, n, MVRFloat64Particle{d}, Nothing)
-smcio_KPF = SMCIO{model_KPF.particle, model_KPF.pScratch}(2^10, n, 1, true, 0.5)
+smcio_KPF = SMCIO{model_KPF.particle, model_KPF.pScratch}(2^11, n, 1, true, 0.5)
 
 smc!(model_KPF, smcio_KPF)
 
+smcio_KPF.logZhats[end]
 
-# student = MvTDist(ν, zeros(d), Σ)
+
+reps = 1000
+res = Matrix{Float64}(undef,reps,2)
+
+for i in 1:reps
+  smc!(model_BPF, smcio_BPF)
+  smc!(model_KPF, smcio_KPF)
+  res[i,:] = [smcio_BPF.logZhats[end], smcio_KPF.logZhats[end]]
+end
+
+logsumexp(res[:,1]) - log(reps)
+logsumexp(res[:,2]) - log(reps)
+
+SequentialMonteCarlo.V(smcio_BPF, (x) -> 1, true, false, n)
+SequentialMonteCarlo.V(smcio_KPF, (x) -> 1, true, false, n)
+
+
+
+
+# student = MvTdistr(ν, zeros(d), Σ)
 
 # st_test = [samplescalenormalmix(latentscale, latentgauss, Random.GLOBAL_RNG)[1] for _ in 1:100000]
 # st_comp = [rand(student)[1] for _ in 1:100000]

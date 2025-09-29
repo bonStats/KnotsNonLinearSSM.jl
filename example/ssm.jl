@@ -4,6 +4,9 @@ using SequentialMonteCarlo
 using StaticArrays
 using Random
 using LogExpFunctions
+using CSV
+using DataFrames
+using JLD2
 
 function density_product(dist1::MvNormal, dist2::MvNormal)
     constMvN = MvNormal(dist2.μ, dist1.Σ + dist2.Σ) # constant multiplier
@@ -65,7 +68,7 @@ end
 # logpdf(distr(MvNormalScaledDensityProduct(MvNormal([0.0], Σ),obsgauss), 2.0, mvec), [0.5]) -
 # logconstant(MvNormalScaledDensityProduct(MvNormal([0.0], Σ),obsgauss), 2.0, mvec)
 
-d = 2
+d = 1
 Σ = diagm(ones(d)) # latent noise matrix
 Ω = diagm(ones(d)) # observation noise matrix
 ν = 4.0
@@ -90,7 +93,7 @@ function f(x, t::Int64)
     d = length(x)
     #( 0.5 .* x) .+ (25 .* x ./ (1 .+ x .^ 2)) .+ (8 .* cos.(1.2 .* ((d:-1:1) ./ d) .* t))
     #A * (( 0.5 .* x) .+ (25 .* x ./ (1 .+ x .^ 2)))
-    A * (( 0.5 .* x) .+ (25 .* x ./ (1 .+ x .^ 2)) .+ (8 .* cos.(1.2 .* ((d:-1:1) ./ d).* t)))
+    A * (( 0.5 .* x) .+ (25 .* x ./ (1 .+ x .^ 2)) .+ (8 .* cos.(1.2 .* t)))
 end
 
 # observations
@@ -107,6 +110,7 @@ for t in 1:n
   end
   y[t] = x[t] .+ rand(obsgauss)
 end
+
 
 
 twistedgauss = [MvNormalScaledDensityProduct(latentgauss, MvNormal(y[t], Ω)) for t in 1:n]
@@ -215,7 +219,8 @@ SequentialMonteCarlo.V(smcio_KPF, (x) -> 1, true, false, n)
 # quantile(st_test, 0.75), quantile(st_comp, 0.75)    
 
 
-using CSV
-using DataFrames
 
-CSV.write("example/results/ssm-test-.csv", DataFrame(res, :auto), header= ["BPF", "KPF"])
+
+CSV.write("example/results/ssm-test-d1.csv", DataFrame(res, :auto), header= ["BPF", "KPF"])
+
+@save "example/results/smm-x-y-data-d1.jld2" x y

@@ -60,6 +60,10 @@ with(bpf_update,{
     (1-delta) * epsilon * (1-epsilon) + (delta/2)*(epsilon^2 + (1-epsilon)^2)
   }
   
+  eta1_G1 <- function(delta,epsilon){
+    gamma1_G1(delta,epsilon) / gamma1_1(delta,epsilon)
+  }
+  
   gamma0Q01_G1 <- function(delta,epsilon){
     0.5 * ((1-epsilon)^2) * ((delta*(1-epsilon) + (1-delta)*epsilon)^2) + 
       0.5 * (epsilon^2) * (((1-delta)*(1-epsilon) + delta*epsilon)^2)
@@ -84,8 +88,9 @@ with(bpf_update,{
     
   }
   
+  # hat sigma2
   sigma2 <- function(delta,epsilon){
-    v01(delta,epsilon) +  v11(delta,epsilon)
+    (v01(delta,epsilon) + v11(delta,epsilon)) / (eta1_G1(delta,epsilon)^2)
   }
   
   nc_estimate <- function(delta, epsilon, prt0, prt1, N){
@@ -96,7 +101,7 @@ with(bpf_update,{
   
   normal_nc_estimate <- function(delta, epsilon, prt0, prt1, N){
     # normalise to correspond asymptotic variance calculation  
-    nc_estimate(delta, epsilon, prt0, prt1, N) / gamma1_1(delta,epsilon)
+    nc_estimate(delta, epsilon, prt0, prt1, N) / gamma1_G1(delta,epsilon)
   }
   
   sampler_exp <- function(N, delta, epsilon){
@@ -132,6 +137,10 @@ with(full_adapt_update,{
     gamma1_1(delta,epsilon)
   }
   
+  eta1_G1 <- function(delta,epsilon){
+    gamma1_G1(delta,epsilon) / gamma1_1(delta,epsilon)
+  }
+  
   gamma0Q01_G1 <- function(delta,epsilon){
     0.25 * ( (1-epsilon)*( (delta*(1-epsilon) + (1-delta)*epsilon)^2) + epsilon*( (delta*epsilon + (1-delta)*(1-epsilon) )^2) )
   }
@@ -153,8 +162,9 @@ with(full_adapt_update,{
     
   }
   
+  # hat sigma
   sigma2 <- function(delta,epsilon){
-    v01(delta,epsilon) +  v11(delta,epsilon)
+    ( v01(delta,epsilon) +  v11(delta,epsilon) ) / (eta1_G1(delta,epsilon)^2)
   }
   
   G0_F <- function(delta, epsilon, value){
@@ -175,7 +185,7 @@ with(full_adapt_update,{
   
   normal_nc_estimate <- function(delta, epsilon, prt0, prt1, N){
     # normalise to correspond asymptotic variance calculation  
-    nc_estimate(delta, epsilon, prt0, prt1, N) / gamma1_1(delta,epsilon)
+    nc_estimate(delta, epsilon, prt0, prt1, N) / gamma1_G1(delta,epsilon)
   }
   
   sampler_exp <- function(N, delta, epsilon){
@@ -213,6 +223,10 @@ with(adapted_knotset_update,{
     (1-delta) * epsilon * (1-epsilon) + (delta/2)*(epsilon^2 + (1-epsilon)^2)
   }
   
+  eta1_G1 <- function(delta,epsilon){
+    gamma1_G1(delta,epsilon) / gamma1_1(delta,epsilon)
+  }
+  
   gamma0Q01_G1 <- function(delta,epsilon){
     gamma1_G1(delta,epsilon)^2
   }
@@ -235,7 +249,7 @@ with(adapted_knotset_update,{
   }
   
   sigma2 <- function(delta,epsilon){
-    v01(delta,epsilon) +  v11(delta,epsilon)
+    ( v01(delta,epsilon) +  v11(delta,epsilon) ) / ( eta1_G1(delta,epsilon)^2 )
   }
   
   G1_ast <- function(delta, epsilon, value){
@@ -256,7 +270,7 @@ with(adapted_knotset_update,{
   
   normal_nc_estimate <- function(delta, epsilon, prt0, prt1, N){
     # normalise to correspond asymptotic variance calculation  
-    nc_estimate(delta, epsilon, prt0, prt1, N) / gamma1_1(delta,epsilon)
+    nc_estimate(delta, epsilon, prt0, prt1, N) / gamma1_G1(delta,epsilon)
   }
   
   sampler_exp <- function(N, delta, epsilon){
@@ -303,13 +317,13 @@ setNames(
 
 # large sample
 setNames(
-  c(adapted_knotset_update$sampler_exp(N,dval,eval) * adapted_knotset_update$gamma1_1(dval,eval),
-   full_adapt_update$sampler_exp(N,dval,eval) * full_adapt_update$gamma1_1(dval,eval),
-   bpf_update$sampler_exp(N,dval,eval) * bpf_update$gamma1_1(dval,eval)),
+  c(adapted_knotset_update$sampler_exp(N,dval,eval),
+   full_adapt_update$sampler_exp(N,dval,eval),
+   bpf_update$sampler_exp(N,dval,eval)),
   c("Terminal adapted knotset","'Full' adaptation","Bootstrap"))  
 
 
-# Recreate Figure 2 (with normalizing constant instead of phi=x) from AM Johansen, A Doucet (2008)
+# Test empirical versus theoretical asymptotic variance
 
 N <- 100000
 eval <- 0.25
@@ -346,7 +360,7 @@ ggplot(aes(x=x,y=y,colour=pf),data=est_asy_var) +
   ylab("Asymptotic variance") + 
   theme_bw()
 
-## Figure 4 paper (Figure 2 in J&D): export 4 x 6 inches landscape
+## Figure 4 paper: export 3.25 x 5 inches landscape
 
 pf_label_order <- function(x) ordered(x, levels = c("Bootstrap", "'Full' adaptation", "Terminal adapted knotset"))
 

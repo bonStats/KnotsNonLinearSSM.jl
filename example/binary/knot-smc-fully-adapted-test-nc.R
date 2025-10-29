@@ -344,7 +344,7 @@ full_adapt_est_asy_var <- data.frame(
 adapted_knotset_est_asy_var <- data.frame(
   y=sapply(dvals, function(d) adapted_knotset_update$est_asy_var(N, d, eval)), 
   x=dvals,
-  pf = "Terminal adapted knotset",
+  pf = "Adapted terminal knotset",
   N = N)
 
 est_asy_var <- bind_rows(bpf_est_asy_var, full_adapt_est_asy_var, adapted_knotset_est_asy_var)
@@ -355,14 +355,14 @@ ggplot(aes(x=x,y=y,colour=pf),data=est_asy_var) +
   geom_function(fun = function(d) full_adapt_update$sigma2(delta = d,epsilon = eval), colour = fulladapt_col) +
   geom_function(fun = function(d) adapted_knotset_update$sigma2(delta = d,epsilon = eval), colour = adaptedknot_col ) +
   scale_x_continuous("delta", breaks = seq(0,1,length.out = 11)) +
-  scale_color_manual("Particle filter type", values = c(Bootstrap = bpf_col, `'Full' adaptation` = fulladapt_col, `Terminal adapted knotset` = adaptedknot_col)) + 
+  scale_color_manual("Particle filter type", values = c(Bootstrap = bpf_col, `'Full' adaptation` = fulladapt_col, `Adapted terminal knotset` = adaptedknot_col)) + 
   ggtitle(paste0("Performance of particle filters, epsilon = ",eval))  +
   ylab("Asymptotic variance") + 
   theme_bw()
 
-## Figure 4 paper: export 3.25 x 5 inches landscape
+## Figure 4 paper: export 3.25 x 6 inches landscape
 
-pf_label_order <- function(x) ordered(x, levels = c("Bootstrap", "'Full' adaptation", "Terminal adapted knotset"))
+pf_label_order <- function(x) ordered(x, levels = c("Bootstrap", "'Full' adaptation", "Adapted terminal knotset"))
 
 est_asy_var$pf <- pf_label_order(est_asy_var$pf)
 
@@ -372,7 +372,7 @@ ggplot(aes(x=x,y=y), data=est_asy_var) +
   geom_point(aes(shape = pf)) + 
   geom_function(aes(linetype = pf_label_order("Bootstrap")), fun = function(d) bpf_update$sigma2(delta = d,epsilon = eval)) +
   geom_function(aes(linetype = pf_label_order("'Full' adaptation")), fun = function(d) full_adapt_update$sigma2(delta = d,epsilon = eval)) +
-  geom_function(aes(linetype = pf_label_order("Terminal adapted knotset")), fun = function(d) adapted_knotset_update$sigma2(delta = d,epsilon = eval)) +
+  geom_function(aes(linetype = pf_label_order("Adapted terminal knotset")), fun = function(d) adapted_knotset_update$sigma2(delta = d,epsilon = eval)) +
   scale_x_continuous(expression(delta), breaks = seq(0,1,length.out = 11), labels = scales::label_number(drop0trailing=TRUE)) +
   scale_shape_discrete(paste0("N = ",format(Nval,scientific = F, big.mark = ",")), solid = FALSE) + 
   scale_linetype_discrete(expression(N %->% infinity)) + 

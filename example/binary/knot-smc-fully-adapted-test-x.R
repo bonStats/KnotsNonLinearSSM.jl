@@ -442,7 +442,7 @@ ggplot(aes(x=x,y=y,colour=pf),data=est_asy_var) +
   theme_bw()
 
 
-## Figure 2 paper (Figure 2 in J&D): export 4 x 6 inches landscape
+## Figure 2 paper (Figure 2 in J&D): export 4 x 6 inches landscape (3.25 * 6 journal)
 
 pf_label_order <- function(x) ordered(x, levels = c("Bootstrap", "'Full' adaptation", "Adapted knotset"))
 
@@ -472,7 +472,17 @@ ggplot(aes(x=x,y=y), data=est_asy_var) +
   theme_bw()
   
   
-# Figure 3: 3*7 inches
+# Figure 3: 2.5*8 inches
+
+  eps_label <- function(eps){
+      as.expression(bquote(epsilon~"="~.(eps)))
+  }
+  
+  eps_label_variable <- function(eps, all_eps){
+    
+    ordered(eps, levels = all_eps, labels = sapply(all_eps, eps_label))
+    
+  }
   
   evals <- c(0.05,0.1,0.2,0.4,0.5)
   
@@ -499,8 +509,8 @@ ggplot(aes(x=x,y=y), data=est_asy_var) +
     scale_x_continuous(expression(delta), breaks = seq(0,1,length.out = 6), labels = scales::label_number(drop0trailing=TRUE)) +
     scale_shape_discrete(paste0("N = ",format(Nval,scientific = F, big.mark = ","))) + 
     scale_linetype_discrete(expression(N %->% infinity)) + 
-    ylab("Relative Variance") + 
+    ylab("Excess Variance") + 
     facet_grid(rows=~eps, labeller = label_parsed) +
     theme_bw() +
-    theme(legend.position="bottom") +
+    theme(legend.position="right") +
     guides(linetype = guide_legend(title.position = "top", title.hjust = 0.5))
